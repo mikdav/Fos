@@ -43,6 +43,7 @@ namespace Fos.Listener
 
 		private IServerLogger Logger;
 		private CancellationTokenSource CancellationSource;
+        private List<Tuple<Action<object>, object>> onSendHeadersCallbacks = new List<Tuple<Action<object>, object>>();
 
 		/// <summary>
 		/// This method should (and is) automatically called whenever any part of the body is to be sent. It sends the response's status code
@@ -50,6 +51,14 @@ namespace Fos.Listener
 		/// </summary>
 		private void SendHeaders()
  		{
+            // This foreach loop implements the server.OnSendingHeaders common Owin key
+            // See http://owin.org/spec/spec/CommonKeys.html#_6._Common_keys
+            // This is needed for any of the MS authentication middleware to work
+            foreach (var callbackTuple in onSendHeadersCallbacks)
+            {
+                callbackTuple.Item1(callbackTuple.Item2);
+            }
+
 			var headers = (IDictionary<string, string[]>)OwinContext["owin.ResponseHeaders"];
 			
 			using (var headerStream = new Fos.Streams.NonEndingStdoutSocketStream(Socket))
@@ -250,10 +259,17 @@ namespace Fos.Listener
             CancellationSource = new CancellationTokenSource();
             OwinContext = new OwinContext("1.0", CancellationSource.Token);
 
+            OwinContext.Add("server.OnSendingHeaders", (Action<Action<object>, object>)RegisterOnSendingHeadersCallback);
+
             // Streams
             stdout = new Fos.Streams.FosStdoutStream(sock);
             OwinContext.ResponseBody = Stdout;
             OwinContext.RequestBody = Stdin;
 		}
-	}
+
+        void RegisterOnSendingHeadersCallback(Action<object> callback, object state)
+        {
+            onSendHeadersCallbacks.Add(Tuple.Create(callback, state));
+        }
+    }
 }
