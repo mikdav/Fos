@@ -3,6 +3,7 @@ using System.Linq;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using System.IO;
+using System.Net;
 
 namespace Fos.Logging
 {
@@ -11,15 +12,6 @@ namespace Fos.Logging
     internal class StatsPageMiddleware
     {
         private StatsLogger Logger;
-
-        private string HtmlEncode(string text)
-        {
-            //TODO: THIS MUST BE VERY SECURE! IS IT SECURE ENOUGH?
-            if (text == null)
-                return string.Empty;
-
-            return text.Replace("<", "&lt;").Replace(">", "&gt;");
-        }
 
         private string Head()
         {
@@ -60,7 +52,7 @@ namespace Fos.Logging
             foreach (var time in Logger.GetAllRequestTimes())
             {
                 string row_class = (i % 2 == 0) ? "even_row" : "odd_row";
-                builder.AppendFormat("<tr class=\"{0}\"><td>{1}</td><td>{2}</td><td>{3}</td><td class=\"see_details\">details</td></tr>\n", row_class, HtmlEncode(time.RelativePath), HtmlEncode(time.HttpMethod), time.NumRequests);
+                builder.AppendFormat("<tr class=\"{0}\"><td>{1}</td><td>{2}</td><td>{3}</td><td class=\"see_details\">details</td></tr>\n", row_class, WebUtility.HtmlEncode(time.RelativePath), WebUtility.HtmlEncode(time.HttpMethod), time.NumRequests);
 
                 // Now the line with more data
                 builder.AppendFormat("<tr class=\"row_data\"><td colspan=\"4\"><div style=\"padding-left: 10px;\">Minimum time: {0}ms<br />Maximum time: {1}ms<br/>Average time: {2}ms</div></td></tr>\n", time.MinimumTime.TotalMilliseconds, time.MaximumTime.TotalMilliseconds, time.AverageTime.TotalMilliseconds);
@@ -82,7 +74,7 @@ namespace Fos.Logging
                 foreach (var error in applicationErrors)
                 {
                     string row_class = (i % 2 == 0) ? "even_row" : "odd_row";
-                    builder.AppendFormat("<tr class=\"{0}\"><td>{1}</td><td>{2}</td><td>{3}</td><td class=\"see_details\">details</td></tr>\n", row_class, HtmlEncode(error.RelativePath), HtmlEncode(error.HttpMethod), HtmlEncode(error.Error.Message));
+                    builder.AppendFormat("<tr class=\"{0}\"><td>{1}</td><td>{2}</td><td>{3}</td><td class=\"see_details\">details</td></tr>\n", row_class, WebUtility.HtmlEncode(error.RelativePath), WebUtility.HtmlEncode(error.HttpMethod), WebUtility.HtmlEncode(error.Error.Message));
                     
                     // Now the line with more data
                     builder.AppendFormat("<tr class=\"row_data\"><td colspan=\"4\"><div style=\"padding-left: 10px;\">{0}</div></td></tr>\n", error.Error.ToString());
@@ -105,10 +97,10 @@ namespace Fos.Logging
                 foreach (var error in serverErrors)
                 {
                     string row_class = (i % 2 == 0) ? "even_row" : "odd_row";
-                    builder.AppendFormat("<tr class=\"{0}\"><td>{1}</td><td class=\"see_details\">details</td></tr>\n", row_class, HtmlEncode(error.GetType().ToString()));
+                    builder.AppendFormat("<tr class=\"{0}\"><td>{1}</td><td class=\"see_details\">details</td></tr>\n", row_class, WebUtility.HtmlEncode(error.GetType().ToString()));
                     
                     // Now the line with more data
-                    builder.AppendFormat("<tr class=\"row_data\"><td colspan=\"4\"><div style=\"padding-left: 10px;\">{0}</div></td></tr>\n", HtmlEncode(error.ToString()));
+                    builder.AppendFormat("<tr class=\"row_data\"><td colspan=\"4\"><div style=\"padding-left: 10px;\">{0}</div></td></tr>\n", WebUtility.HtmlEncode(error.ToString()));
                     
                     i++;
                 }
@@ -146,9 +138,7 @@ namespace Fos.Logging
 
         public StatsPageMiddleware(OwinHandler next, StatsLogger logger)
         {
-            if (next != null)
-                throw new ArgumentNullException("This middleware must be the last in the pipeline");
-            else if (logger == null)
+            if (logger == null)
                 throw new ArgumentNullException("You must provide an IServerLogger");
 
             Logger = logger;
